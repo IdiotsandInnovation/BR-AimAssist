@@ -14,16 +14,16 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public final class BRaimAssistClient implements ClientModInitializer {
 	private static final String MOD_ID = "br_aimassist";
-	private static final double MAX_TARGET_DISTANCE = 8.0;
+	private static final double MAX_TARGET_DISTANCE = 16.0;
 	private static final double MAX_CROSSHAIR_ANGLE_DEGREES = 45.0;
-	private static final int AIM_DURATION_TICKS = 6;
+	private static final float AIM_STRENGTH = 0.85F;
 
 	private static final KeyMapping AIM_KEY = new KeyMapping(
 			"key.br_aimassist.aim",
@@ -32,9 +32,6 @@ public final class BRaimAssistClient implements ClientModInitializer {
 	);
 
 	private static Entity target;
-	private static float startYaw;
-	private static float startPitch;
-	private static int aimTicksElapsed;
 
 	@Override
 	public void onInitializeClient() {
@@ -51,27 +48,18 @@ public final class BRaimAssistClient implements ClientModInitializer {
 		Player player = client.player;
 		if (player == null || client.level == null) {
 			target = null;
-			aimTicksElapsed = 0;
 			return;
 		}
 
-		if (AIM_KEY.consumeClick()) {
-			target = findTarget(player);
-			aimTicksElapsed = 0;
-			if (target != null) {
-				startYaw = player.getYRot();
-				startPitch = player.getXRot();
-			}
-		}
-
-		if (target == null) {
-			return;
-		}
-		if (!target.isAlive() || target.isRemoved()) {
+		if (!AIM_KEY.isDown()) {
 			target = null;
 			return;
 		}
-		if (aimTicksElapsed < AIM_DURATION_TICKS) {
+
+		if (target == null) {
+			target = findTarget(player);
+		}
+		if (target != null) {
 			guideView(player, target);
 		}
 	}
@@ -85,10 +73,10 @@ public final class BRaimAssistClient implements ClientModInitializer {
 		Entity bestTarget = null;
 		AABB searchArea = player.getBoundingBox().inflate(MAX_TARGET_DISTANCE);
 
-		for (LivingEntity candidate : player.level().getEntitiesOfClass(
-				LivingEntity.class,
+		for (Mob candidate : player.level().getEntitiesOfClass(
+				Mob.class,
 				searchArea,
-				entity -> entity != player && entity.isAlive() && !entity.isSpectator() && player.hasLineOfSight(entity)
+				entity -> entity.isAlive() && !entity.isSpectator() && player.hasLineOfSight(entity)
 		)) {
 			Vec3 toCandidate = candidate.getBoundingBox().getCenter().subtract(eyePosition);
 			double distanceSquared = toCandidate.lengthSqr();
@@ -117,22 +105,20 @@ public final class BRaimAssistClient implements ClientModInitializer {
 
 		float targetYaw = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0F;
 		float targetPitch = (float) -(Mth.atan2(dy, horizontalDistance) * Mth.RAD_TO_DEG);
-		aimTicksElapsed++;
-		float progress = (float) aimTicksElapsed / AIM_DURATION_TICKS;
-		float easedProgress = progress * progress * (3.0F - 2.0F * progress);
-
-		player.setYRot(startYaw + Mth.wrapDegrees(targetYaw - startYaw) * easedProgress);
-		player.setXRot(startPitch + (targetPitch - startPitch) * easedProgress);
+		player.setYRot(player.getYRot() + Mth.wrapDegrees(targetYaw - player.getYRot()) * AIM_STRENGTH);
+		player.setXRot(Mth.clamp(
+				player.getXRot() + (targetPitch - player.getXRot()) * AIM_STRENGTH,
+				-90.0F,
+				90.0F
+		));
 	}
 
 	private static void renderHud(GuiGraphicsExtractor graphics, DeltaTracker tickCounter) {
-		if (target == null || !target.isAlive() || target.isRemoved()) {
+		if (target == null) {
 			return;
 		}
 
-		String name = target instanceof Player
-				? target.getName().getString()
-				: target.getType().getDescription().getString();
+		String name = target.getType().getDescription().getString();
 		Component label = Component.translatable("hud.br_aimassist.target", name);
 		Minecraft client = Minecraft.getInstance();
 		int x = 8;

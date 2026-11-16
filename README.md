@@ -1,6 +1,6 @@
 # BR-AimAssist
 
-BR-AimAssist is a client-side Fabric mod for Minecraft Java 26.3. Press **R** (rebindable in Controls) to smoothly guide the view toward the living entity nearest the crosshair. The target must be visible, within 8 blocks, and inside a 45-degree cone around the crosshair. The bottom-left HUD shows a player's name or a mob's type while the target remains available.
+BR-AimAssist is a client-side Fabric mod for Minecraft Java 26.3. Hold **R** (rebindable in Controls) to strongly guide the view toward the mob nearest the crosshair. A target must be visible, within 16 blocks, and inside a 45-degree cone around the crosshair to acquire. Once acquired, it stays locked and tracked even if it moves out of range or line of sight; release **R** to unlock. The bottom-left HUD shows the targeted mob's type while locked.
 
 ## Build
 
