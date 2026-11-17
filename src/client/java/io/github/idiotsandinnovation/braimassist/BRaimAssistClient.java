@@ -26,9 +26,9 @@ import java.util.List;
 
 public final class BRaimAssistClient implements ClientModInitializer {
 	private static final String MOD_ID = "br_aimassist";
-	private static final double MAX_TARGET_DISTANCE = 16.0;
+	private static final double MAX_TARGET_DISTANCE = 20.0;
 	private static final double MAX_CROSSHAIR_ANGLE_DEGREES = 45.0;
-	private static final float AIM_STRENGTH = 0.85F;
+	private static final float AIM_STRENGTH = 0.50F;
 
 	private static final KeyMapping AIM_KEY = new KeyMapping(
 			"key.br_aimassist.aim",
