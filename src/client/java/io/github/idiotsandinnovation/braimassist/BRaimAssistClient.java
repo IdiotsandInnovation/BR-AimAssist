@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -14,10 +15,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public final class BRaimAssistClient implements ClientModInitializer {
 	private static final String MOD_ID = "br_aimassist";
@@ -65,6 +70,11 @@ public final class BRaimAssistClient implements ClientModInitializer {
 	}
 
 	private static Entity findTarget(Player player) {
+		ClientLevel level = Minecraft.getInstance().level;
+		if (level == null) {
+			return null;
+		}
+
 		Vec3 eyePosition = player.getEyePosition();
 		Vec3 lookDirection = player.getLookAngle();
 		double minimumLookDot = Math.cos(Math.toRadians(MAX_CROSSHAIR_ANGLE_DEGREES));
@@ -72,12 +82,18 @@ public final class BRaimAssistClient implements ClientModInitializer {
 		double bestDistanceSquared = MAX_TARGET_DISTANCE * MAX_TARGET_DISTANCE;
 		Entity bestTarget = null;
 		AABB searchArea = player.getBoundingBox().inflate(MAX_TARGET_DISTANCE);
-
-		for (Mob candidate : player.level().getEntitiesOfClass(
+		List<LivingEntity> candidates = new ArrayList<>(level.players());
+		candidates.addAll(level.getEntitiesOfClass(
 				Mob.class,
 				searchArea,
-				entity -> entity.isAlive() && !entity.isSpectator() && player.hasLineOfSight(entity)
-		)) {
+				entity -> entity.isAlive() && !entity.isSpectator()
+		));
+
+		for (LivingEntity candidate : candidates) {
+			if (candidate == player || !candidate.isAlive() || candidate.isSpectator() || !player.hasLineOfSight(candidate)) {
+				continue;
+			}
+
 			Vec3 toCandidate = candidate.getBoundingBox().getCenter().subtract(eyePosition);
 			double distanceSquared = toCandidate.lengthSqr();
 			if (distanceSquared > bestDistanceSquared || distanceSquared == 0.0) {
@@ -118,7 +134,9 @@ public final class BRaimAssistClient implements ClientModInitializer {
 			return;
 		}
 
-		String name = target.getType().getDescription().getString();
+		String name = target instanceof Player
+				? target.getName().getString()
+				: target.getType().getDescription().getString();
 		Component label = Component.translatable("hud.br_aimassist.target", name);
 		Minecraft client = Minecraft.getInstance();
 		int x = 8;
