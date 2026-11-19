@@ -94,13 +94,15 @@ public final class BRaimAssistClient implements ClientModInitializer {
 				continue;
 			}
 
-			Vec3 toCandidate = candidate.getBoundingBox().getCenter().subtract(eyePosition);
+			Vec3 toCandidate = closestPointOnHitbox(candidate, eyePosition).subtract(eyePosition);
 			double distanceSquared = toCandidate.lengthSqr();
-			if (distanceSquared > bestDistanceSquared || distanceSquared == 0.0) {
+			if (distanceSquared > bestDistanceSquared) {
 				continue;
 			}
 
-			double lookDot = lookDirection.dot(toCandidate) / Math.sqrt(distanceSquared);
+			double lookDot = distanceSquared == 0.0
+					? 1.0
+					: lookDirection.dot(toCandidate) / Math.sqrt(distanceSquared);
 			if (lookDot > bestLookDot || (lookDot == bestLookDot && distanceSquared < bestDistanceSquared)) {
 				bestTarget = candidate;
 				bestLookDot = lookDot;
@@ -113,7 +115,10 @@ public final class BRaimAssistClient implements ClientModInitializer {
 
 	private static void guideView(Player player, Entity entity) {
 		Vec3 eyePosition = player.getEyePosition();
-		Vec3 targetPosition = entity.getBoundingBox().getCenter();
+		Vec3 targetPosition = closestPointOnHitbox(entity, eyePosition);
+		if (targetPosition.equals(eyePosition)) {
+			targetPosition = entity.getBoundingBox().getCenter();
+		}
 		double dx = targetPosition.x - eyePosition.x;
 		double dy = targetPosition.y - eyePosition.y;
 		double dz = targetPosition.z - eyePosition.z;
@@ -127,6 +132,15 @@ public final class BRaimAssistClient implements ClientModInitializer {
 				-90.0F,
 				90.0F
 		));
+	}
+
+	private static Vec3 closestPointOnHitbox(Entity entity, Vec3 position) {
+		AABB hitbox = entity.getBoundingBox();
+		return new Vec3(
+				Mth.clamp(position.x, hitbox.minX, hitbox.maxX),
+				Mth.clamp(position.y, hitbox.minY, hitbox.maxY),
+				Mth.clamp(position.z, hitbox.minZ, hitbox.maxZ)
+		);
 	}
 
 	private static void renderHud(GuiGraphicsExtractor graphics, DeltaTracker tickCounter) {
