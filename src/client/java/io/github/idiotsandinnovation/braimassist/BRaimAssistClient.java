@@ -64,6 +64,10 @@ public final class BRaimAssistClient implements ClientModInitializer {
 		if (target == null) {
 			target = findTarget(player);
 		}
+		if (target != null && (!target.isAlive() || target.isRemoved())) {
+			target = null;
+			return;
+		}
 		if (target != null) {
 			guideView(player, target);
 		}
